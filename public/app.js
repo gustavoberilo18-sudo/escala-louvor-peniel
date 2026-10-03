@@ -901,9 +901,12 @@ $("#btnPdfOk").addEventListener("click", async () => {
     const tipos = (tipo === "tudo" ? ["vozes", "instrumentos"] : [tipo]).filter((t) => vagasDe(t).length);
     if (!tipos.length) { toast("Não há vagas desse tipo neste mês."); return; }
     tipos.forEach((t, i) => { if (i) doc.addPage(); paginaPdf(doc, t, F); });
-    doc.save(`Escala_Louvor_Peniel_${mes}${tipo === "tudo" ? "" : "_" + tipo}.pdf`);
+    const nomeArq = { vozes: "VOZES", instrumentos: "INSTRUMENTOS", tudo: "VOZES_e_INSTRUMENTOS" }[tipo];
+    const mesNome = MESES[Number(mes.slice(5)) - 1];
+    doc.setProperties({ title: `Escala de ${tipo === "tudo" ? "Vozes e Instrumentos" : tipo === "vozes" ? "Vozes" : "Instrumentos"} - ${mesNome} ${mes.slice(0, 4)} - IBN Peniel` });
+    doc.save(`Escala_${nomeArq}_${mesNome}_${mes.slice(0, 4)}_Peniel.pdf`);
     $("#dlgPdf").close();
-    toast("PDF baixado.");
+    toast(tipo === "tudo" ? "PDF baixado: vozes (pág. 1) e instrumentos (pág. 2)." : `PDF de ${tipo === "vozes" ? "VOZES" : "INSTRUMENTOS"} baixado.`);
   } catch (err) {
     console.error(err);
     toast("Não foi possível gerar o PDF. Tente de novo.");
@@ -926,10 +929,16 @@ function paginaPdf(doc, tipo, F) {
   fonte("forte", 20, COR.verm); doc.text("IGREJA BATISTA NACIONAL PENIEL", tx, M + 6.5);
   fonte("semi", 9.5, COR.cinza); doc.text("MINISTÉRIO DE LOUVOR  •  BERILO - MG", tx, M + 12);
   fonte("normal", 9, COR.cinza); doc.text("Lugar de encontro, face a face com Deus!", tx, M + 17);
-  fonte("forte", 28, COR.tinta); doc.text(`${MESES[nm - 1].toUpperCase()} ${ano}`, W - M, M + 8.5, { align: "right" });
-  fonte("semi", 11, COR.verm);
-  doc.text(tipo === "vozes" ? "ESCALA DE VOZES" : "ESCALA DE INSTRUMENTOS", W - M, M + 15.5, { align: "right" });
-  doc.setDrawColor(...COR.verm); doc.setLineWidth(0.8); doc.line(M, M + 21, W - M, M + 21);
+  // Identificação da escala: cor própria (vozes em vermelho, instrumentos em azul), faixa no topo e selo grande
+  const corTipo = tipo === "vozes" ? COR.verm : [20, 78, 150];
+  const nomeTipo = tipo === "vozes" ? "ESCALA DE VOZES" : "ESCALA DE INSTRUMENTOS";
+  doc.setFillColor(...corTipo); doc.rect(0, 0, W, 3.2, "F");
+  fonte("forte", 17, [255, 255, 255]);
+  const selW = doc.getTextWidth(nomeTipo) + 14, selH = 11.5, selX = W - M - selW, selY = M - 4.5;
+  doc.setFillColor(...corTipo); doc.roundedRect(selX, selY, selW, selH, 2.2, 2.2, "F");
+  doc.text(nomeTipo, selX + selW / 2, selY + 8.2, { align: "center" });
+  fonte("forte", 15, COR.tinta); doc.text(`${MESES[nm - 1].toUpperCase()} ${ano}`, W - M, M + 15.5, { align: "right" });
+  doc.setDrawColor(...corTipo); doc.setLineWidth(0.8); doc.line(M, M + 21, W - M, M + 21);
 
   // Grade de cartões
   const n = Math.max(1, cultos.length);
@@ -979,7 +988,7 @@ function paginaPdf(doc, tipo, F) {
     fonte("forte", 21, [255, 255, 255]); doc.text(dia, x + 3.2, y + 8.6);
     const wDia = doc.getTextWidth(dia);
     const sem = c.extra ? c.nome.toUpperCase() : DIAS[d.getDay()] === "Terça" ? "TERÇA-FEIRA" : DIAS[d.getDay()] === "Quinta" ? "QUINTA-FEIRA" : DIAS[d.getDay()].toUpperCase();
-    const sub = c.ceia ? `SANTA CEIA  •  ${c.turno.toUpperCase()}` : c.extra ? `${DIAS[d.getDay()].toUpperCase()}  •  ESCALA EXTRA` : MESES[nm - 1].toUpperCase();
+    const sub = c.ceia ? `CEIA  •  ${c.turno.toUpperCase()}` : c.extra ? `${DIAS[d.getDay()].toUpperCase()}  •  ESCALA EXTRA` : MESES[nm - 1].toUpperCase();
     const xs = x + 3.2 + wDia + 2.6, ws = cw - (xs - x) - 2.5;
     fonte("forte", 10, [255, 255, 255]); doc.text(doc.splitTextToSize(sem, ws)[0], xs, y + 5.1);
     fonte("semi", 7.3, c.ceia ? COR.rosaClaro : COR.cinzaClaro); doc.text(doc.splitTextToSize(sub, ws)[0], xs, y + 8.9);
@@ -1011,7 +1020,7 @@ function paginaPdf(doc, tipo, F) {
   if (lid) { fonte("semi", 8.5, COR.tinta); doc.text("LIDERANÇA:", M, H - M + 1.5); fonte("normal", 8.5, COR.cinza); doc.text(lid, M + doc.getTextWidth("LIDERANÇA: ") + 2.5, H - M + 1.5); }
   fonte("normal", 8.5, COR.cinza);
   const ceia = ceiaDoMes(mes);
-  doc.text(`${ceia !== "nenhum" ? `Santa Ceia: domingo, ${ddmm(ceia)}     •     ` : ""}Gerado em ${new Date().toLocaleDateString("pt-BR")}`, W - M, H - M + 1.5, { align: "right" });
+  doc.text(`${ceia !== "nenhum" ? `Ceia: domingo, ${ddmm(ceia)}     •     ` : ""}Gerado em ${new Date().toLocaleDateString("pt-BR")}`, W - M, H - M + 1.5, { align: "right" });
 }
 
 // ---------- Histórico e cópias ----------
