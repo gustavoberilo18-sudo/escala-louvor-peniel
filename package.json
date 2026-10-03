@@ -1,0 +1,10 @@
+{
+  "name": "escala-louvor-peniel",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Escala do Ministério de Louvor - IBN Peniel (Berilo/MG)",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.3"
+  }
+}
