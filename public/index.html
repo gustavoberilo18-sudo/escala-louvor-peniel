@@ -276,7 +276,7 @@ dialog::backdrop{background:rgba(20,8,10,.55);backdrop-filter:blur(2px)}
     <div class="acoes">
       <button class="btn" id="btnAuto"><svg><use href="#i-wand"/></svg>Preencher automático</button>
       <button class="btn zap" id="btnZap"><svg><use href="#i-zap"/></svg>WhatsApp</button>
-      <button class="btn prim" id="btnPdf"><svg><use href="#i-file"/></svg>Gerar PDF</button>
+      <button class="btn prim" id="btnPdf"><svg><use href="#i-file"/></svg>PDF / Imagem</button>
       <button class="btn" id="btnMais" aria-label="Mais opções"><svg><use href="#i-more"/></svg>Mais</button>
     </div>
   </section>
@@ -368,13 +368,17 @@ dialog::backdrop{background:rgba(20,8,10,.55);backdrop-filter:blur(2px)}
 </div></dialog>
 
 <dialog id="dlgPdf"><div class="dlg">
-  <div class="dlg-topo"><div><h3>Gerar PDF</h3><p>Folha A4 deitada com o mês inteiro, um cartão por culto.</p></div><button class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
+  <div class="dlg-topo"><div><h3>Baixar a escala</h3><p>O mês inteiro numa folha, um cartão por culto. Em PDF para imprimir, ou em imagem (JPG) para mandar no grupo.</p></div><button class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
   <div class="dlg-corpo"><div class="opcoes">
     <label class="opcao"><input type="radio" name="pdfTipo" value="vozes" checked><div><b>Escala de vozes</b><span>Ministro e backings do mês inteiro</span></div></label>
     <label class="opcao"><input type="radio" name="pdfTipo" value="instrumentos"><div><b>Escala de instrumentos</b><span>Teclado, violão, guitarra, baixo e bateria</span></div></label>
-    <label class="opcao"><input type="radio" name="pdfTipo" value="tudo"><div><b>As duas</b><span>Um arquivo com duas folhas: uma de vozes e uma de instrumentos</span></div></label>
+    <label class="opcao"><input type="radio" name="pdfTipo" value="tudo"><div><b>As duas</b><span>PDF com duas folhas, ou duas imagens: uma de vozes e uma de instrumentos</span></div></label>
   </div></div>
-  <div class="dlg-pe"><button class="btn" data-fechar>Cancelar</button><button class="btn prim" id="btnPdfOk"><svg><use href="#i-file"/></svg>Baixar PDF</button></div>
+  <div class="dlg-pe">
+    <button class="btn zap" id="btnImgShare" hidden><svg><use href="#i-zap"/></svg>Compartilhar imagem</button>
+    <button class="btn" id="btnImg"><svg><use href="#i-file"/></svg>Baixar imagem (JPG)</button>
+    <button class="btn prim" id="btnPdfOk"><svg><use href="#i-file"/></svg>Baixar PDF</button>
+  </div>
 </div></dialog>
 
 <dialog id="dlgMembro"><form class="dlg" id="formMembro">

@@ -855,9 +855,11 @@ $("#zapCopiar").addEventListener("click", async () => {
 // ---------- PDF (texto de verdade, não imagem) ----------
 let logoPng = null;
 let logoProp = 1;
+let logoImg = null;
 function prepararLogo() {
   const img = new Image();
   img.onload = () => {
+    logoImg = img;
     const cv = document.createElement("canvas"); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
     cv.getContext("2d").drawImage(img, 0, 0);
     logoProp = img.naturalWidth / img.naturalHeight;
@@ -912,6 +914,134 @@ $("#btnPdfOk").addEventListener("click", async () => {
     toast("Não foi possível gerar o PDF. Tente de novo.");
   } finally { btn.disabled = false; }
 });
+// ---------- Imagem JPG (mesmo desenho do PDF, feito num canvas) ----------
+// Imita a parte do jsPDF que o paginaPdf usa, com unidades em milímetros.
+const PT = 0.3528; // 1 ponto tipográfico em mm
+class CanvasDoc {
+  constructor(escala) {
+    this.s = escala;
+    this.cv = document.createElement("canvas");
+    this.cv.width = Math.round(297 * escala); this.cv.height = Math.round(210 * escala);
+    this.c = this.cv.getContext("2d");
+    this.c.scale(escala, escala);
+    this.c.fillStyle = "#fff"; this.c.fillRect(0, 0, 297, 210);
+    this.c.textBaseline = "alphabetic";
+    this.fam = "Arial"; this.peso = "400"; this.tam = 10; this.cor = "#000";
+    this.fill = "#000"; this.stroke = "#000"; this.lw = 0.2;
+    this.aplicarFonte();
+  }
+  rgb(a) { return `rgb(${a[0]},${a[1]},${a[2]})`; }
+  aplicarFonte() { this.c.font = `${this.peso} ${this.tam * PT}px ${this.fam}`; }
+  setFont(nome) {
+    const mapa = { Barlownormal: ["PenielN", "400"], Barlowsemi: ["PenielS", "400"], Barlowforte: ["PenielF", "400"] };
+    if (mapa[nome]) [this.fam, this.peso] = mapa[nome];
+    else { this.fam = "Arial, Helvetica, sans-serif"; this.peso = arguments[1] === "bold" ? "700" : "400"; }
+    this.aplicarFonte();
+  }
+  setFontSize(t) { this.tam = t; this.aplicarFonte(); }
+  getFontSize() { return this.tam; }
+  setTextColor(...a) { this.cor = this.rgb(a); }
+  setFillColor(...a) { this.fill = this.rgb(a); }
+  setDrawColor(...a) { this.stroke = this.rgb(a); }
+  setLineWidth(w) { this.lw = w; }
+  getTextWidth(t) { return this.c.measureText(String(t)).width; }
+  splitTextToSize(t, max) {
+    const linhas = []; let atual = "";
+    for (const p of String(t).split(/\s+/)) {
+      const tent = atual ? atual + " " + p : p;
+      if (this.getTextWidth(tent) <= max || !atual) atual = tent; else { linhas.push(atual); atual = p; }
+    }
+    if (atual) linhas.push(atual);
+    return linhas;
+  }
+  text(t, x, y, o = {}) {
+    const linhas = Array.isArray(t) ? t : [t];
+    const c = this.c;
+    c.fillStyle = this.cor;
+    c.textAlign = o.align === "right" ? "right" : o.align === "center" ? "center" : "left";
+    try { c.letterSpacing = o.charSpace ? `${o.charSpace}px` : "0px"; } catch {}
+    const lh = this.tam * PT * (o.lineHeightFactor || 1.15);
+    linhas.forEach((l, i) => c.fillText(String(l), x, y + i * lh));
+  }
+  rect(x, y, w, h, est = "S") { this.forma(() => this.c.rect(x, y, w, h), est); }
+  roundedRect(x, y, w, h, r, _r2, est = "S") { this.forma(() => this.c.roundRect(x, y, w, h, r), est); }
+  line(x1, y1, x2, y2) { const c = this.c; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.strokeStyle = this.stroke; c.lineWidth = this.lw; c.stroke(); }
+  forma(caminho, est) {
+    const c = this.c; c.beginPath(); caminho();
+    if (est.includes("F")) { c.fillStyle = this.fill; c.fill(); }
+    if (est === "S" || est === "FD" || est === "DF") { c.strokeStyle = this.stroke; c.lineWidth = this.lw; c.stroke(); }
+  }
+  addImage(_src, _f, x, y, w, h) { if (logoImg) this.c.drawImage(logoImg, x, y, w, h); }
+  setProperties() {}
+  addPage() {}
+}
+
+let fontesCanvas = null;
+function carregarFontesCanvas() {
+  if (fontesCanvas) return fontesCanvas;
+  const arq = { PenielN: "BarlowCondensed_500Medium.ttf", PenielS: "BarlowCondensed_600SemiBold.ttf", PenielF: "BarlowCondensed_800ExtraBold.ttf" };
+  fontesCanvas = Promise.all(Object.entries(arq).map(async ([fam, f]) => {
+    const ff = new FontFace(fam, `url(vendor/fonts/${f})`);
+    await ff.load(); document.fonts.add(ff);
+  })).then(() => true).catch(() => (fontesCanvas = null, false));
+  return fontesCanvas;
+}
+
+async function gerarJpg(tipo) {
+  const ok = await carregarFontesCanvas();
+  const F = ok
+    ? { normal: ["Barlownormal", "normal"], semi: ["Barlowsemi", "normal"], forte: ["Barlowforte", "normal"] }
+    : { normal: ["helvetica", "normal"], semi: ["helvetica", "bold"], forte: ["helvetica", "bold"] };
+  const d = new CanvasDoc(2400 / 297); // 2400 x 1697 px
+  paginaPdf(d, tipo, F);
+  return await new Promise((res) => d.cv.toBlob(res, "image/jpeg", 0.92));
+}
+
+function baixarBlob(blob, nome) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+async function exportarImagem(compartilhar) {
+  const tipo = $('input[name="pdfTipo"]:checked').value;
+  const tipos = (tipo === "tudo" ? ["vozes", "instrumentos"] : [tipo]).filter((t) => vagasDe(t).length);
+  if (!tipos.length) { toast("Não há vagas desse tipo neste mês."); return; }
+  const mesNome = MESES[Number(mes.slice(5)) - 1];
+  const arquivos = [];
+  for (const t of tipos) {
+    const blob = await gerarJpg(t);
+    arquivos.push(new File([blob], `Escala_${t === "vozes" ? "VOZES" : "INSTRUMENTOS"}_${mesNome}_${mes.slice(0, 4)}_Peniel.jpg`, { type: "image/jpeg" }));
+  }
+  if (compartilhar) {
+    try {
+      await navigator.share({ files: arquivos, title: `Escala do Louvor · ${mesNome}`, text: `Escala do Louvor Peniel · ${mesExtenso(mes)}` });
+      $("#dlgPdf").close();
+      return;
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      toast("Não deu para compartilhar direto. As imagens foram baixadas.");
+    }
+  }
+  arquivos.forEach((f, i) => setTimeout(() => baixarBlob(f, f.name), i * 700));
+  $("#dlgPdf").close();
+  toast(arquivos.length > 1 ? "2 imagens baixadas: vozes e instrumentos." : `Imagem de ${tipos[0] === "vozes" ? "VOZES" : "INSTRUMENTOS"} baixada.`);
+}
+
+const podeCompartilhar = (() => {
+  try { return !!(navigator.canShare && navigator.canShare({ files: [new File(["x"], "x.jpg", { type: "image/jpeg" })] })); } catch { return false; }
+})();
+if (podeCompartilhar) $("#btnImgShare").hidden = false;
+
+async function comBotao(btn, fn) {
+  btn.disabled = true;
+  try { await fn(); } catch (err) { console.error(err); toast("Não foi possível gerar a imagem. Tente de novo."); }
+  finally { btn.disabled = false; }
+}
+$("#btnImg").addEventListener("click", (e) => comBotao(e.currentTarget, () => exportarImagem(false)));
+$("#btnImgShare").addEventListener("click", (e) => comBotao(e.currentTarget, () => exportarImagem(true)));
+
 // PDF em cartões: um cartão por culto, com o dia em destaque e os nomes logo abaixo.
 // Cada escala (vozes ou instrumentos) cabe inteira numa folha A4 deitada.
 function paginaPdf(doc, tipo, F) {
