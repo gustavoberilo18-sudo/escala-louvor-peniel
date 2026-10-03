@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Escala de Louvor Peniel</title>
+<meta name="description" content="Escala mensal de vozes e instrumentos do Ministério de Louvor da IBN Peniel, Berilo/MG.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Escala Louvor">
+<meta name="theme-color" content="#d10a14">
+<link rel="icon" type="image/png" href="icone.png">
+<link rel="apple-touch-icon" href="icone.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
+<script src="vendor/jspdf.umd.min.js" defer></script>
+<style>
+/* Layout: cabeçalho fixo com a identidade da igreja, barra do mês, abas e uma grade de cartões (um por culto). */
+:root{
+  --bg:#f6f3f2; --surface:#ffffff; --surface-2:#f2eceb; --ink:#1f1719; --muted:#6e6266; --line:#e6dddc;
+  --brand:#d10a14; --brand-ink:#ffffff; --brand-soft:#fdeaea; --brand-line:#f5c2c4;
+  --head:#231c1e; --head-ink:#ffffff; --head-muted:#b9adb0;
+  --ok:#13795b; --ok-soft:#e3f4ec; --warn:#a35207; --warn-soft:#fdf0dc;
+  --shadow:0 1px 2px rgba(40,10,12,.06),0 4px 14px rgba(40,10,12,.05);
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141011; --surface:#1d1819; --surface-2:#272022; --ink:#f4eeef; --muted:#a99da0; --line:#362d30;
+  --brand:#ff3d47; --brand-ink:#ffffff; --brand-soft:#3b1619; --brand-line:#6e2328;
+  --head:#0d0a0b; --head-ink:#ffffff; --head-muted:#9b8f92;
+  --ok:#3fcf98; --ok-soft:#10301f; --warn:#f2a33a; --warn-soft:#3a2a10;
+  --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#141011; --surface:#1d1819; --surface-2:#272022; --ink:#f4eeef; --muted:#a99da0; --line:#362d30;
+  --brand:#ff3d47; --brand-ink:#ffffff; --brand-soft:#3b1619; --brand-line:#6e2328;
+  --head:#0d0a0b; --head-ink:#ffffff; --head-muted:#9b8f92;
+  --ok:#3fcf98; --ok-soft:#10301f; --warn:#f2a33a; --warn-soft:#3a2a10;
+  --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--f-body);min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+[hidden]{display:none!important}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px}
+
+/* Cabeçalho */
+.topo{background:var(--surface);border-bottom:3px solid var(--brand);position:sticky;top:0;z-index:20;padding-top:env(safe-area-inset-top,0px)}
+.topo .wrap{display:flex;align-items:center;gap:12px;padding-block:10px;flex-wrap:wrap}
+.marca{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.marca .logo{width:52px;height:auto;flex-shrink:0;background:#fff;border-radius:10px;padding:3px;border:1px solid var(--line)}
+.marca h1{margin:0;font:800 22px/1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;color:var(--brand)}
+.marca p{margin:2px 0 0;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topo-acoes{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.status{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--line);background:var(--surface-2);color:var(--muted)}
+.status i{width:8px;height:8px;border-radius:50%;background:currentColor}
+.status.ok{color:var(--ok);background:var(--ok-soft);border-color:transparent}
+.status.salvando{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+.status.erro{color:var(--brand);background:var(--brand-soft);border-color:transparent}
+.lider{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:700;text-decoration:none;color:var(--ink);background:var(--surface-2);border:1px solid var(--line)}
+.lider:hover{border-color:var(--ok);color:var(--ok)}
+.lider svg{width:14px;height:14px;color:var(--ok)}
+.icone-btn{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
+.icone-btn:hover{color:var(--brand);border-color:var(--brand-line)}
+.icone-btn svg{width:17px;height:17px}
+
+/* Mês + ações */
+.painel{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:16px 8px}
+.mes{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ceia-sel{display:inline-flex;flex-direction:column;gap:2px;margin-left:10px;padding:5px 10px 6px;border-radius:10px;background:var(--brand-soft);border:1px solid var(--brand-line)}
+.ceia-sel span{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--brand)}
+.ceia-sel select{border:0;background:transparent;font-weight:700;font-size:14px;padding:0;color:var(--ink);cursor:pointer}
+.ceia-sel select:focus{outline:none}
+.ceia-sel:focus-within{outline:2px solid var(--brand);outline-offset:2px}
+.mes h2{margin:0;font:800 30px/1 var(--f-display);text-transform:uppercase;letter-spacing:.01em;min-width:9ch;text-align:center}
+.mes h2 small{display:block;font:600 12px/1.2 var(--f-body);color:var(--muted);letter-spacing:.06em;margin-top:3px}
+.acoes{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:14px;white-space:nowrap;text-decoration:none;color:var(--ink)}
+.btn svg{width:17px;height:17px;flex-shrink:0}
+.btn:hover{border-color:var(--brand-line)}
+.btn.prim{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.prim:hover{filter:brightness(1.07)}
+.btn.zap{background:#128c4a;border-color:#128c4a;color:#fff}
+.btn.perigo{color:var(--brand)}
+.btn.pequeno{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.55;cursor:default}
+
+/* Abas */
+.abas{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-top:6px;overflow-x:auto;scrollbar-width:none}
+.abas::-webkit-scrollbar{display:none}
+.aba{border:0;background:none;padding:10px 14px;font:700 15px var(--f-body);color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;display:flex;gap:7px;align-items:center;white-space:nowrap}
+.aba svg{width:17px;height:17px}
+.aba[aria-selected="true"]{color:var(--brand);border-bottom-color:var(--brand)}
+.aba .cont{font-size:12px;background:var(--surface-2);color:var(--muted);padding:1px 7px;border-radius:999px}
+.aba[aria-selected="true"] .cont{background:var(--brand-soft);color:var(--brand)}
+
+main{padding-block:16px 60px}
+.aviso{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r);background:var(--surface);border:1px dashed var(--line);color:var(--muted);font-size:14px;margin-bottom:14px}
+.aviso strong{color:var(--ink)}
+.aviso svg{width:18px;height:18px;flex-shrink:0;color:var(--brand);margin-top:1px}
+
+/* Grade de cultos */
+.grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.culto{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.culto.ceia{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.culto-topo{background:var(--head);color:var(--head-ink);padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.culto.ceia .culto-topo{background:var(--brand)}
+.culto-topo .dia{font:700 12px var(--f-body);text-transform:uppercase;letter-spacing:.07em;color:var(--head-muted)}
+.culto.ceia .culto-topo .dia{color:#ffd9db}
+.culto-topo .data{font:800 24px/1 var(--f-display);letter-spacing:.01em}
+.culto-topo .tags{display:flex;gap:6px;align-items:center}
+.tag{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:6px;background:rgba(255,255,255,.18);color:#fff}
+.culto-menu{border:0;background:rgba(255,255,255,.12);color:#fff;width:28px;height:28px;border-radius:8px;display:grid;place-items:center}
+.culto-menu svg{width:16px;height:16px}
+.vagas{padding:10px 12px 12px;display:grid;gap:8px}
+.vaga{display:grid;gap:3px}
+.vaga label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.vaga select{width:100%;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:15px;appearance:none;-webkit-appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 52%,calc(100% - 10px) 52%;background-size:5px 5px;background-repeat:no-repeat;padding-right:28px}
+.vaga select.vazio{background-color:var(--surface-2);color:var(--muted);font-weight:500;border-style:dashed}
+.vaga select.alerta{border-color:var(--warn);background-color:var(--warn-soft)}
+.vaga .nota{font-size:12px;color:var(--warn);font-weight:600}
+.culto-pe{margin-top:auto;padding:0 12px 10px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
+.vagas-barra{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;font-size:14px;color:var(--muted)}
+.vagas-barra b{color:var(--ink)}
+.removidos{margin-top:18px;font-size:13px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* Resumo */
+.resumo{margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.resumo h3{margin:0 0 4px;font:800 18px var(--f-display);text-transform:uppercase;letter-spacing:.02em}
+.resumo p{margin:0 0 10px;color:var(--muted);font-size:13px}
+.barras{display:grid;gap:6px}
+.barra{display:grid;grid-template-columns:minmax(90px,170px) 1fr 28px;gap:10px;align-items:center;font-size:14px}
+.barra span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.barra .trilho{height:10px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.barra .trilho i{display:block;height:100%;background:var(--brand);border-radius:99px}
+.barra b{text-align:right;font-variant-numeric:tabular-nums}
+
+/* Integrantes */
+.cartao{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.cartao h3{margin:0 0 12px;font:800 20px var(--f-display);text-transform:uppercase;letter-spacing:.02em}
+.form-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end}
+.campo{display:grid;gap:4px}
+.campo>span{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.campo input,.campo select,.campo textarea{width:100%;padding:9px 11px;border-radius:9px;border:1px solid var(--line);background:var(--surface)}
+.campo input:focus,.campo select:focus{border-color:var(--brand);outline:none}
+.funcoes{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:13px;font-weight:600;user-select:none;cursor:pointer}
+.chip input{position:absolute;opacity:0;pointer-events:none}
+.chip:has(input:checked){background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.chip:has(input:focus-visible){outline:2px solid var(--brand);outline-offset:2px}
+.lista-membros{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:16px}
+.membro{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:grid;gap:8px}
+.membro-topo{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.membro h4{margin:0;font-size:16px}
+.membro .fone{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.selos{display:flex;flex-wrap:wrap;gap:4px}
+.selo{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--surface-2);color:var(--muted)}
+.selo.voz{background:var(--brand-soft);color:var(--brand)}
+.selo.indisp{background:var(--warn-soft);color:var(--warn)}
+.membro-acoes{display:flex;gap:6px;flex-wrap:wrap}
+.qtd{font:800 22px/1 var(--f-display);color:var(--brand);text-align:right}
+.qtd small{display:block;font:600 11px var(--f-body);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.vazio-estado{text-align:center;padding:36px 16px;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:var(--r)}
+.vazio-estado strong{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+
+/* Diálogos */
+dialog{border:0;padding:0;border-radius:16px;background:var(--surface);color:var(--ink);width:min(560px,calc(100vw - 24px));max-height:calc(100vh - 32px);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(20,8,10,.55);backdrop-filter:blur(2px)}
+.dlg{display:flex;flex-direction:column;max-height:calc(100vh - 32px)}
+.dlg-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 18px 12px;border-bottom:1px solid var(--line)}
+.dlg-topo h3{margin:0;font:800 22px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.02em}
+.dlg-topo p{margin:3px 0 0;font-size:13px;color:var(--muted)}
+.dlg-corpo{padding:16px 18px;overflow-y:auto;display:grid;gap:14px}
+.dlg-pe{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px 16px;border-top:1px solid var(--line);flex-wrap:wrap}
+.opcoes{display:grid;gap:8px}
+.opcao{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.opcao:has(input:checked){border-color:var(--brand);background:var(--brand-soft)}
+.opcao input{margin-top:3px;accent-color:var(--brand)}
+.opcao b{display:block;font-size:14px}
+.opcao span{font-size:13px;color:var(--muted)}
+.previa{white-space:pre-wrap;font-size:13px;background:var(--surface-2);border-radius:10px;padding:12px;max-height:260px;overflow:auto;border:1px solid var(--line)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:7px 12px;font-weight:700;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink)}
+.pessoa-zap{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.pessoa-zap:last-child{border-bottom:0}
+.pessoa-zap div{min-width:0}
+.pessoa-zap b{display:block}
+.pessoa-zap span{font-size:12px;color:var(--muted)}
+.pessoa-zap.enviado b::after{content:" ✓ enviado";color:var(--ok);font-size:12px}
+.datas{display:flex;flex-wrap:wrap;gap:6px}
+.datas .chip:has(input:checked){background:var(--warn);border-color:var(--warn);color:#fff}
+.log{display:grid;gap:8px}
+.log-item{padding:10px 12px;border:1px solid var(--line);border-radius:10px;display:grid;gap:2px}
+.log-item b{font-size:14px}
+.log-item p{margin:0;font-size:13px}
+.log-item small{color:var(--muted);font-size:12px}
+.copias{display:flex;flex-wrap:wrap;gap:6px}
+
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--head);color:var(--head-ink);padding:11px 16px;border-radius:12px;font-weight:600;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.3);z-index:60;max-width:calc(100vw - 32px)}
+@media (max-width:640px){
+  .marca h1{font-size:19px}
+  .marca .logo{width:44px}
+  .mes h2{font-size:26px}
+  .painel{flex-direction:column;align-items:stretch}
+  .mes{justify-content:space-between}
+  .ceia-sel{margin-left:0;width:100%;flex-direction:row;align-items:center;justify-content:space-between}
+  .acoes{display:grid;grid-template-columns:1fr 1fr}
+  .acoes .btn{justify-content:center}
+  .topo .wrap{gap:8px}
+  .marca{flex:1 1 100%}
+  .topo .wrap>.topo-acoes{width:100%}
+  #status{margin-right:auto;white-space:nowrap}
+  #lideres{width:auto}
+  .topo-acoes{gap:5px;flex-wrap:nowrap}
+  #btnLideranca{display:none}
+  .status,.lider{padding:5px 8px}
+  .icone-btn{width:32px;height:32px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></symbol>
+  <symbol id="i-guitar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11.9 12.1 4.5-4.5M15.7 4.3l4 4M17 2l5 5-2 2-5-5z"/><path d="M6 11c-2.5 0-4 2-4 4.5S4 22 8.5 22s6.5-1.5 6.5-4-2-3.5-4-3.5c0-2-1.5-3.5-5-3.5z"/><circle cx="8" cy="16" r="1.5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 4-1-2M15 10l-1 2M19 7h2M9 7H7M18.5 3.5l-1 1M18.5 10.5l-1-1M3 21l9-9"/><circle cx="15" cy="7" r="2"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+</svg>
+
+<header class="topo">
+  <div class="wrap">
+    <div class="marca">
+      <img class="logo" src="logo.png" alt="Igreja Batista Nacional Peniel" width="431" height="442">
+      <div style="min-width:0">
+        <h1>Escala de Louvor</h1>
+        <p>Ministério de Louvor · IBN Peniel · Berilo-MG</p>
+      </div>
+    </div>
+    <div class="topo-acoes">
+      <span id="status" class="status" role="status"><i></i><span>Conectando…</span></span>
+      <span id="lideres" class="topo-acoes"></span>
+      <button class="icone-btn" id="btnLideranca" title="Editar liderança" aria-label="Editar liderança"><svg><use href="#i-edit"/></svg></button>
+      <button class="icone-btn" id="btnHistorico" title="Histórico e cópias de segurança" aria-label="Histórico"><svg><use href="#i-history"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="painel" aria-label="Mês da escala">
+    <div class="mes">
+      <button class="icone-btn" id="mesAnt" aria-label="Mês anterior"><svg><use href="#i-left"/></svg></button>
+      <h2 id="mesTitulo">—</h2>
+      <button class="icone-btn" id="mesProx" aria-label="Próximo mês"><svg><use href="#i-right"/></svg></button>
+      <label class="ceia-sel" title="Escolha o domingo da Ceia deste mês"><span>Ceia</span><select id="selCeia"></select></label>
+    </div>
+    <div class="acoes">
+      <button class="btn" id="btnAuto"><svg><use href="#i-wand"/></svg>Preencher automático</button>
+      <button class="btn zap" id="btnZap"><svg><use href="#i-zap"/></svg>WhatsApp</button>
+      <button class="btn prim" id="btnPdf"><svg><use href="#i-file"/></svg>Gerar PDF</button>
+      <button class="btn" id="btnMais" aria-label="Mais opções"><svg><use href="#i-more"/></svg>Mais</button>
+    </div>
+  </section>
+
+  <nav class="abas" role="tablist">
+    <button class="aba" role="tab" data-aba="vozes" aria-selected="true"><svg><use href="#i-mic"/></svg>Vozes <span class="cont" id="contVozes"></span></button>
+    <button class="aba" role="tab" data-aba="instrumentos" aria-selected="false"><svg><use href="#i-guitar"/></svg>Instrumentos <span class="cont" id="contInstr"></span></button>
+    <button class="aba" role="tab" data-aba="integrantes" aria-selected="false"><svg><use href="#i-users"/></svg>Integrantes <span class="cont" id="contMembros"></span></button>
+  </nav>
+
+  <main id="conteudo"></main>
+</div>
+
+<!-- Diálogos -->
+<dialog id="dlgMais"><div class="dlg">
+  <div class="dlg-topo"><div><h3>Mais opções</h3><p id="maisMes"></p></div><button class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
+  <div class="dlg-corpo">
+    <button class="btn" id="btnVagas2"><svg><use href="#i-edit"/></svg>Escolher vagas (backings e instrumentos)</button>
+    <button class="btn" id="btnLideranca2"><svg><use href="#i-edit"/></svg>Editar liderança (nomes e WhatsApp)</button>
+    <button class="btn" id="btnExtra"><svg><use href="#i-plus"/></svg>Adicionar escala extra</button>
+    <div class="campo"><span>Limpar a escala deste mês</span>
+      <div class="acoes">
+        <button class="btn perigo pequeno" data-limpar="vozes">Só vozes</button>
+        <button class="btn perigo pequeno" data-limpar="instrumentos">Só instrumentos</button>
+        <button class="btn perigo pequeno" data-limpar="tudo">Tudo</button>
+      </div>
+      <p id="limparConfirma" class="aviso" hidden></p>
+    </div>
+    <div class="campo"><span>Tema da tela</span>
+      <div class="seg" id="segTema"><button data-tema="">Automático</button><button data-tema="light">Claro</button><button data-tema="dark">Escuro</button></div>
+    </div>
+  </div>
+</div></dialog>
+
+<dialog id="dlgVagas"><div class="dlg">
+  <div class="dlg-topo"><div><h3>Vagas da escala</h3><p id="vagasMes"></p></div><button class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
+  <div class="dlg-corpo">
+    <div class="campo"><span>Quantos backings além do ministro</span>
+      <div class="seg" id="segBacks"><button data-n="0">Nenhum</button><button data-n="1">1</button><button data-n="2">2</button><button data-n="3">3</button><button data-n="4">4</button></div></div>
+    <div class="campo"><span>Instrumentos na escala</span><div class="funcoes" id="vagasInstr"></div></div>
+    <p class="aviso" style="margin:0"><svg><use href="#i-info"/></svg><span>Desmarque o que não vai ter (por exemplo, o teclado). Vale para este mês e para os próximos, até alguém mudar de novo. Quem já estava escalado numa vaga desmarcada não é apagado: o nome volta se a vaga for marcada de novo.</span></p>
+  </div>
+  <div class="dlg-pe"><button class="btn" data-fechar>Cancelar</button><button class="btn prim" id="btnVagasOk">Salvar</button></div>
+</div></dialog>
+
+<dialog id="dlgExtra"><form class="dlg" id="formExtra">
+  <div class="dlg-topo"><div><h3>Escala extra</h3><p>Para um dia fora da agenda normal, ou um segundo culto no mesmo dia.</p></div><button type="button" class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
+  <div class="dlg-corpo">
+    <label class="campo"><span>Data</span><input type="date" id="extraData" required></label>
+    <label class="campo"><span>Nome</span><input type="text" id="extraNome" maxlength="40" list="sugestoesExtra" placeholder="Ex: Vigília de Oração" required></label>
+    <datalist id="sugestoesExtra"><option value="Vigília de Oração"><option value="Culto de Missões"><option value="Conferência"><option value="Casamento"><option value="Culto da Família"><option value="Ensaio Geral"><option value="Culto de Jovens"><option value="Batismo"></datalist>
+    <p style="margin:0;font-size:13px;color:var(--muted)">A escala extra aparece na tela, no PDF e na mensagem do WhatsApp junto com os outros cultos, com as mesmas vagas do mês.</p>
+  </div>
+  <div class="dlg-pe"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn prim">Adicionar</button></div>
+</form></dialog>
+
+<dialog id="dlgAuto"><div class="dlg">
+  <div class="dlg-topo"><div><h3>Preencher automático</h3><p>Distribui as pessoas de forma equilibrada no mês.</p></div><button class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
+  <div class="dlg-corpo">
+    <div class="opcoes">
+      <label class="opcao"><input type="radio" name="autoTipo" value="vozes" checked><div><b>Vozes</b><span>Ministro e backings</span></div></label>
+      <label class="opcao"><input type="radio" name="autoTipo" value="instrumentos"><div><b>Instrumentos</b><span>Teclado, violão, guitarra, baixo e bateria</span></div></label>
+      <label class="opcao"><input type="radio" name="autoTipo" value="tudo"><div><b>Vozes e instrumentos</b></div></label>
+    </div>
+    <div class="opcoes">
+      <label class="opcao"><input type="radio" name="autoModo" value="vazias" checked><div><b>Só as vagas vazias</b><span>Mantém o que já foi escolhido.</span></div></label>
+      <label class="opcao"><input type="radio" name="autoModo" value="refazer"><div><b>Refazer do zero</b><span>Apaga as escolhas deste mês e distribui de novo.</span></div></label>
+    </div>
+    <div class="aviso"><svg><use href="#i-info"/></svg><div>Respeita a função de cada pessoa, as <strong>datas indisponíveis</strong> marcadas na aba Integrantes, não repete a mesma pessoa no mesmo culto e evita escalar quem tocou ou cantou no culto anterior.</div></div>
+    <p id="autoResultado" class="aviso" hidden></p>
+  </div>
+  <div class="dlg-pe"><button class="btn" data-fechar>Cancelar</button><button class="btn prim" id="btnAutoOk"><svg><use href="#i-wand"/></svg>Preencher</button></div>
+</div></dialog>
+
+<dialog id="dlgZap"><div class="dlg">
+  <div class="dlg-topo"><div><h3>Enviar no WhatsApp</h3><p id="zapMes"></p></div><button class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
+  <div class="dlg-corpo">
+    <div class="seg" id="segZapModo"><button data-modo="grupo" aria-pressed="true">Mensagem para o grupo</button><button data-modo="pessoas" aria-pressed="false">Avisar cada pessoa</button></div>
+    <div id="zapGrupo" class="dlg-corpo" style="padding:0">
+      <div class="seg" id="segZapTipo"><button data-tipo="tudo" aria-pressed="true">Tudo</button><button data-tipo="vozes" aria-pressed="false">Vozes</button><button data-tipo="instrumentos" aria-pressed="false">Instrumentos</button></div>
+      <div class="previa" id="zapPrevia"></div>
+      <div class="acoes"><a class="btn zap" id="zapAbrir" target="_blank" rel="noopener"><svg><use href="#i-zap"/></svg>Abrir no WhatsApp</a><button class="btn" id="zapCopiar">Copiar texto</button></div>
+    </div>
+    <div id="zapPessoas" hidden>
+      <p class="aviso" style="margin:0"><svg><use href="#i-info"/></svg><span>Cada pessoa recebe só as datas dela. Quem tem WhatsApp cadastrado abre direto na conversa; sem número, o WhatsApp pede para você escolher o contato.</span></p>
+      <div id="zapLista"></div>
+    </div>
+  </div>
+</div></dialog>
+
+<dialog id="dlgPdf"><div class="dlg">
+  <div class="dlg-topo"><div><h3>Gerar PDF</h3><p>Folha A4 deitada com o mês inteiro, um cartão por culto.</p></div><button class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
+  <div class="dlg-corpo"><div class="opcoes">
+    <label class="opcao"><input type="radio" name="pdfTipo" value="vozes" checked><div><b>Escala de vozes</b><span>Ministro e backings do mês inteiro</span></div></label>
+    <label class="opcao"><input type="radio" name="pdfTipo" value="instrumentos"><div><b>Escala de instrumentos</b><span>Teclado, violão, guitarra, baixo e bateria</span></div></label>
+    <label class="opcao"><input type="radio" name="pdfTipo" value="tudo"><div><b>As duas</b><span>Um arquivo com duas folhas: uma de vozes e uma de instrumentos</span></div></label>
+  </div></div>
+  <div class="dlg-pe"><button class="btn" data-fechar>Cancelar</button><button class="btn prim" id="btnPdfOk"><svg><use href="#i-file"/></svg>Baixar PDF</button></div>
+</div></dialog>
+
+<dialog id="dlgMembro"><form class="dlg" id="formMembro">
+  <div class="dlg-topo"><div><h3 id="membroTitulo">Integrante</h3><p>Nome, funções e WhatsApp</p></div><button type="button" class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
+  <div class="dlg-corpo">
+    <label class="campo"><span>Nome</span><input type="text" id="mNome" maxlength="60" required></label>
+    <div class="campo"><span>Funções</span><div class="funcoes" id="mFuncoes"></div></div>
+    <label class="campo"><span>WhatsApp (com DDD)</span><input type="tel" id="mZap" inputmode="tel" placeholder="(33) 98765-4321"></label>
+    <label class="campo"><span>Observação</span><input type="text" id="mObs" maxlength="120" placeholder="Ex: só pode aos domingos"></label>
+    <div id="mRemoverBox"></div>
+  </div>
+  <div class="dlg-pe"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn prim">Salvar</button></div>
+</form></dialog>
+
+<dialog id="dlgIndisp"><div class="dlg">
+  <div class="dlg-topo"><div><h3 id="indispTitulo">Datas indisponíveis</h3><p id="indispSub"></p></div><button class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
+  <div class="dlg-corpo"><p style="margin:0;font-size:14px;color:var(--muted)">Toque nos cultos em que a pessoa <b>não pode</b> servir. O preenchimento automático pula essas datas e a escala mostra um alerta se ela for escolhida.</p><div class="datas" id="indispDatas"></div></div>
+  <div class="dlg-pe"><button class="btn" data-fechar>Cancelar</button><button class="btn prim" id="btnIndispOk">Salvar</button></div>
+</div></dialog>
+
+<dialog id="dlgLideranca"><form class="dlg" id="formLideranca">
+  <div class="dlg-topo"><div><h3>Liderança</h3><p>Aparece no topo e no rodapé do PDF</p></div><button type="button" class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
+  <div class="dlg-corpo">
+    <div class="form-grade"><label class="campo"><span>Líder 1</span><input id="l1n" maxlength="60" required></label><label class="campo"><span>WhatsApp</span><input id="l1w" inputmode="tel" required></label></div>
+    <div class="form-grade"><label class="campo"><span>Líder 2</span><input id="l2n" maxlength="60"></label><label class="campo"><span>WhatsApp</span><input id="l2w" inputmode="tel"></label></div>
+  </div>
+  <div class="dlg-pe"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn prim">Salvar</button></div>
+</form></dialog>
+
+<dialog id="dlgHistorico"><div class="dlg">
+  <div class="dlg-topo"><div><h3>Histórico</h3><p>Quem mudou o quê, e cópias de segurança</p></div><button class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
+  <div class="dlg-corpo">
+    <form class="form-grade" id="formAutor"><label class="campo"><span>Seu nome (aparece nas alterações)</span><input id="autorNome" maxlength="40" placeholder="Ex: Luana"></label><button class="btn">Salvar nome</button></form>
+    <div class="campo"><span>Cópias de segurança diárias</span><div class="copias" id="copias"><small style="color:var(--muted)">Carregando…</small></div><p id="restaurarConfirma" class="aviso" hidden></p></div>
+    <div class="campo"><span>Últimas alterações</span><div class="log" id="logLista"></div></div>
+  </div>
+  <div class="dlg-pe"><button class="btn pequeno" id="btnExportar">Baixar dados (.json)</button><button class="btn" data-fechar>Fechar</button></div>
+</div></dialog>
+
+<dialog id="dlgAutor"><form class="dlg" id="formAutor2">
+  <div class="dlg-topo"><div><h3>Como você se chama?</h3><p>Seu nome fica registrado no histórico das alterações.</p></div></div>
+  <div class="dlg-corpo"><label class="campo"><span>Nome</span><input id="autorNome2" maxlength="40" placeholder="Ex: Ianka" required></label></div>
+  <div class="dlg-pe"><button type="button" class="btn" data-fechar>Agora não</button><button class="btn prim">Salvar</button></div>
+</form></dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
