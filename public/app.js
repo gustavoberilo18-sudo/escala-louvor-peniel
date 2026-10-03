@@ -1004,6 +1004,26 @@ function baixarBlob(blob, nome) {
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
 
+// Mensagem que acompanha a imagem no WhatsApp
+function mensagemEscala() {
+  return [
+    `📅 *ESCALA DO LOUVOR · ${mesExtenso(mes).toUpperCase()}*`,
+    ``,
+    `*QUERO REFORÇAR ALGUMAS COISAS:*`,
+    ``,
+    `• *FIQUEM SEMPRE ATENTOS À ESCALA E AOS DIAS EM QUE VOCÊS ESTÃO ESCALADOS.* Se tiverem dúvida para entender a escala, é só nos avisar.`,
+    `• Em caso de algum imprevisto realmente importante, *NÃO SE ESQUEÇAM* de avisar a liderança com antecedência, explicando o motivo.`,
+    `• Pedimos a colaboração de todos para não haver mudanças na escala. Só vamos mudar em caso de extrema importância: fazemos a escala com todo o cuidado, e substituir alguém é muito complicado.`,
+    ``,
+    `*Lembrem-se de que o compromisso de vocês não é com a liderança, e sim com Deus.*`,
+    ``,
+    `Que Deus continue nos abençoando e nos capacitando sempre! 🙌🏽`,
+  ].join("\n");
+}
+async function copiarMensagem() {
+  try { await navigator.clipboard.writeText(mensagemEscala()); return true; } catch { return false; }
+}
+
 async function exportarImagem(compartilhar) {
   const tipo = $('input[name="pdfTipo"]:checked').value;
   const tipos = (tipo === "tudo" ? ["vozes", "instrumentos"] : [tipo]).filter((t) => vagasDe(t).length);
@@ -1014,10 +1034,12 @@ async function exportarImagem(compartilhar) {
     const blob = await gerarJpg(t);
     arquivos.push(new File([blob], `Escala_${t === "vozes" ? "VOZES" : "INSTRUMENTOS"}_${mesNome}_${mes.slice(0, 4)}_Peniel.jpg`, { type: "image/jpeg" }));
   }
+  const copiou = await copiarMensagem(); // garante a mensagem na área de transferência caso o app ignore o texto
   if (compartilhar) {
     try {
-      await navigator.share({ files: arquivos, title: `Escala do Louvor · ${mesNome}`, text: `Escala do Louvor Peniel · ${mesExtenso(mes)}` });
+      await navigator.share({ files: arquivos, text: mensagemEscala() });
       $("#dlgPdf").close();
+      if (copiou) toast("Se a mensagem não aparecer junto da imagem, é só colar: ela já foi copiada.");
       return;
     } catch (err) {
       if (err && err.name === "AbortError") return;
@@ -1026,7 +1048,8 @@ async function exportarImagem(compartilhar) {
   }
   arquivos.forEach((f, i) => setTimeout(() => baixarBlob(f, f.name), i * 700));
   $("#dlgPdf").close();
-  toast(arquivos.length > 1 ? "2 imagens baixadas: vozes e instrumentos." : `Imagem de ${tipos[0] === "vozes" ? "VOZES" : "INSTRUMENTOS"} baixada.`);
+  const baixou = arquivos.length > 1 ? "2 imagens baixadas (vozes e instrumentos)." : `Imagem de ${tipos[0] === "vozes" ? "VOZES" : "INSTRUMENTOS"} baixada.`;
+  toast(copiou ? `${baixou} A mensagem para o grupo foi copiada: cole no WhatsApp junto com a imagem.` : baixou);
 }
 
 const podeCompartilhar = (() => {
