@@ -146,6 +146,7 @@ function aplicarOp(e, op) {
     case "extra.remover": e.extras[m] = (e.extras[m] || []).filter((x) => x.id !== op.id); if (e.escala[m]) delete e.escala[m][op.id]; break;
     case "culto.ocultar": { const s = new Set(e.ocultos[m] || []); op.ocultar ? s.add(op.id) : s.delete(op.id); e.ocultos[m] = [...s]; break; }
     case "ceia": mudarCeia(e, m, op.data); break;
+    case "foto.foco": e.foto = { v: e.foto?.v || 0, foco: op.foco }; break;
     case "vagas": (e.vagas ||= {})[m] = { backings: op.backings, instrumentos: INSTR.map((v) => v.cargo).filter((c) => op.instrumentos.includes(c)) }; break;
     case "historico.limpar": e.historico = []; break;
   }
@@ -639,6 +640,63 @@ $("#btnVagasOk").addEventListener("click", () => {
   toast("Vagas atualizadas. Vale para este mês e os próximos.");
 });
 
+// ---------- Foto do grupo ----------
+let fotoNova = null, fotoNovaImg = null, fotoVoltarPadrao = false;
+async function previaFoto() {
+  const foco = Number($("#fotoFoco").value) / 100;
+  const img = fotoVoltarPadrao ? await carregarImg(FOTO_PADRAO) : fotoNovaImg || (await carregarFoto());
+  const faixa = faixaCabecalho("vozes", img, foco);
+  const cv = $("#fotoPrevia"); cv.width = faixa.width / 2; cv.height = faixa.height / 2;
+  cv.getContext("2d").drawImage(faixa, 0, 0, cv.width, cv.height);
+}
+function abrirFoto() {
+  fotoNova = null; fotoNovaImg = null; fotoVoltarPadrao = false;
+  $("#fotoFoco").value = Math.round(fotoFoco() * 100);
+  $("#fotoPadrao").hidden = !E.foto?.v;
+  previaFoto();
+  abrir("#dlgFoto");
+}
+$("#fotoFoco").addEventListener("input", previaFoto);
+$("#fotoEscolher").addEventListener("click", () => $("#fotoArquivo").click());
+$("#fotoArquivo").addEventListener("change", async (e) => {
+  const arq = e.target.files[0]; e.target.value = "";
+  if (!arq) return;
+  const url = URL.createObjectURL(arq);
+  const img = await carregarImg(url);
+  if (!img) { toast("Não consegui abrir essa foto. Tente outra (JPG ou PNG)."); return; }
+  // Reduz para no máximo 1600 px de largura antes de enviar
+  const esc = Math.min(1, 1600 / img.width), cv = document.createElement("canvas");
+  cv.width = Math.round(img.width * esc); cv.height = Math.round(img.height * esc);
+  cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+  fotoNova = await new Promise((ok) => cv.toBlob(ok, "image/jpeg", 0.86));
+  fotoNovaImg = cv; fotoVoltarPadrao = false;
+  $("#fotoFoco").value = 25;
+  previaFoto();
+  toast("Ajuste a posição para os rostos aparecerem bem e toque em Salvar.");
+});
+$("#fotoPadrao").addEventListener("click", () => { fotoVoltarPadrao = true; fotoNova = null; fotoNovaImg = null; $("#fotoFoco").value = 2; previaFoto(); });
+$("#fotoSalvar").addEventListener("click", async (e) => {
+  const btn = e.currentTarget; btn.disabled = true;
+  const foco = Number($("#fotoFoco").value) / 100;
+  const q = `foco=${foco}&autor=${encodeURIComponent(ls.get("peniel_autor", ""))}&aparelho=${encodeURIComponent(aparelho())}`;
+  try {
+    if (fotoNova || fotoVoltarPadrao) {
+      const r = await fetch(`${API.replace("escala", "foto")}?${q}`, fotoNova ? { method: "POST", body: fotoNova, headers: { "content-type": "image/jpeg" } } : { method: "DELETE" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.erro || "erro");
+      servidor = d; pendentes = []; recalcular(); salvarLocal(); render();
+      if (fotoVoltarPadrao && foco !== fotoFoco()) enviar([{ t: "foto.foco", foco }], null);
+      toast(fotoNova ? "Foto nova salva. Ela já aparece no PDF e na imagem da escala." : "Voltou para a foto padrão.");
+    } else if (foco !== fotoFoco()) {
+      enviar([{ t: "foto.foco", foco }], { acao: "Foto do grupo", detalhe: "Ajustou a posição da foto no cabeçalho" });
+      toast("Posição da foto salva.");
+    }
+    $("#dlgFoto").close();
+  } catch (err) {
+    toast("Não foi possível salvar a foto: " + (err.message === "Failed to fetch" ? "verifique a internet." : err.message));
+  } finally { btn.disabled = false; }
+});
+
 // ---------- Liderança ----------
 $("#btnLideranca").addEventListener("click", () => {
   const [a = {}, b = {}] = E.lideranca;
@@ -685,6 +743,7 @@ $("#dlgMais").addEventListener("click", (e) => {
   const tb = e.target.closest("[data-tema]");
   if (tb) { aplicarTema(tb.dataset.tema); $$("#segTema button").forEach((b) => b.setAttribute("aria-pressed", String(b === tb))); }
   if (e.target.closest("#btnVagas2")) { $("#dlgMais").close(); abrirVagas(); return; }
+  if (e.target.closest("#btnFoto2")) { $("#dlgMais").close(); abrirFoto(); return; }
   if (e.target.closest("#btnLideranca2")) { $("#dlgMais").close(); $("#btnLideranca").click(); return; }
   if (e.target.closest("#btnExtra")) { $("#dlgMais").close(); abrirExtra(); }
 });
@@ -902,7 +961,8 @@ $("#btnPdfOk").addEventListener("click", async () => {
     }
     const tipos = (tipo === "tudo" ? ["vozes", "instrumentos"] : [tipo]).filter((t) => vagasDe(t).length);
     if (!tipos.length) { toast("Não há vagas desse tipo neste mês."); return; }
-    tipos.forEach((t, i) => { if (i) doc.addPage(); paginaPdf(doc, t, F); });
+    const foto = await carregarFoto();
+    tipos.forEach((t, i) => { if (i) doc.addPage(); paginaPdf(doc, t, F, faixaCabecalho(t, foto)); });
     const nomeArq = { vozes: "VOZES", instrumentos: "INSTRUMENTOS", tudo: "VOZES_e_INSTRUMENTOS" }[tipo];
     const mesNome = MESES[Number(mes.slice(5)) - 1];
     doc.setProperties({ title: `Escala de ${tipo === "tudo" ? "Vozes e Instrumentos" : tipo === "vozes" ? "Vozes" : "Instrumentos"} - ${mesNome} ${mes.slice(0, 4)} - IBN Peniel` });
@@ -971,7 +1031,10 @@ class CanvasDoc {
     if (est.includes("F")) { c.fillStyle = this.fill; c.fill(); }
     if (est === "S" || est === "FD" || est === "DF") { c.strokeStyle = this.stroke; c.lineWidth = this.lw; c.stroke(); }
   }
-  addImage(_src, _f, x, y, w, h) { if (logoImg) this.c.drawImage(logoImg, x, y, w, h); }
+  addImage(src, _f, x, y, w, h) {
+    if (src && typeof src === "object") this.c.drawImage(src, x, y, w, h);
+    else if (logoImg) this.c.drawImage(logoImg, x, y, w, h);
+  }
   setProperties() {}
   addPage() {}
 }
@@ -987,15 +1050,53 @@ function carregarFontesCanvas() {
   return fontesCanvas;
 }
 
-async function gerarJpg(tipo) {
+// ---------- Foto do grupo no cabeçalho (PDF e imagem) ----------
+const FOTO_PADRAO = "foto-grupo.jpg";
+const FAIXA_H = 31.5; // altura da faixa com a foto, em mm
+const fotoCache = {};
+function fotoSrc() { return E.foto?.v ? `${API.replace("escala", "foto")}?v=${E.foto.v}` : FOTO_PADRAO; }
+function fotoFoco() { return typeof E.foto?.foco === "number" ? E.foto.foco : 0.02; }
+function carregarImg(src) {
+  if (!fotoCache[src]) fotoCache[src] = new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; });
+  return fotoCache[src];
+}
+const carregarFoto = async () => (await carregarImg(fotoSrc())) || (await carregarImg(FOTO_PADRAO));
+// Monta a faixa do topo: foto recortada + degradê na cor da escala + logo numa plaquinha branca
+function faixaCabecalho(tipo, foto, foco = fotoFoco()) {
+  const pxmm = 2400 / 297, cv = document.createElement("canvas");
+  cv.width = 2400; cv.height = Math.round(FAIXA_H * pxmm);
+  const c = cv.getContext("2d"); c.scale(pxmm, pxmm);
+  const vozes = tipo === "vozes";
+  c.fillStyle = vozes ? "#7a0008" : "#0a2350"; c.fillRect(0, 0, 297, FAIXA_H);
+  if (foto) {
+    const r = Math.max(297 / foto.width, FAIXA_H / foto.height), sw = 297 / r, sh = FAIXA_H / r;
+    c.drawImage(foto, (foto.width - sw) / 2, (foto.height - sh) * foco, sw, sh, 0, 0, 297, FAIXA_H);
+  }
+  const g = c.createLinearGradient(0, 0, 297, 0);
+  g.addColorStop(0, vozes ? "rgba(120,0,8,0.94)" : "rgba(8,30,70,0.94)");
+  g.addColorStop(0.45, vozes ? "rgba(150,5,14,0.72)" : "rgba(14,52,110,0.72)");
+  g.addColorStop(1, "rgba(15,10,12,0.45)");
+  c.fillStyle = g; c.fillRect(0, 0, 297, FAIXA_H);
+  c.fillStyle = vozes ? "rgb(209,10,20)" : "rgb(20,78,150)"; c.fillRect(0, FAIXA_H - 1.2, 297, 1.2);
+  if (logoImg) {
+    const lh = 23, lw = lh * (logoImg.width / logoImg.height);
+    c.fillStyle = "rgba(255,255,255,0.96)"; c.beginPath(); c.roundRect(8.5, 2.5, lw + 3, lh + 3, 2); c.fill();
+    c.drawImage(logoImg, 10, 4, lw, lh);
+  }
+  return cv;
+}
+
+async function gerarImagem(tipo, formato = "image/jpeg") {
   const ok = await carregarFontesCanvas();
   const F = ok
     ? { normal: ["Barlownormal", "normal"], semi: ["Barlowsemi", "normal"], forte: ["Barlowforte", "normal"] }
     : { normal: ["helvetica", "normal"], semi: ["helvetica", "bold"], forte: ["helvetica", "bold"] };
   const d = new CanvasDoc(2400 / 297); // 2400 x 1697 px
-  paginaPdf(d, tipo, F);
-  return await new Promise((res) => d.cv.toBlob(res, "image/jpeg", 0.92));
+  const foto = await carregarFoto();
+  paginaPdf(d, tipo, F, faixaCabecalho(tipo, foto));
+  return await new Promise((res) => d.cv.toBlob(res, formato, 0.92));
 }
+const gerarJpg = (tipo) => gerarImagem(tipo, "image/jpeg");
 
 function baixarBlob(blob, nome) {
   const a = document.createElement("a");
@@ -1067,7 +1168,7 @@ $("#btnImgShare").addEventListener("click", (e) => comBotao(e.currentTarget, () 
 
 // PDF em cartões: um cartão por culto, com o dia em destaque e os nomes logo abaixo.
 // Cada escala (vozes ou instrumentos) cabe inteira numa folha A4 deitada.
-function paginaPdf(doc, tipo, F) {
+function paginaPdf(doc, tipo, F, faixaTopo) {
   const W = 297, H = 210, M = 10;
   const COR = { verm: [209, 10, 20], vermSuave: [253, 238, 238], tinta: [30, 24, 26], cinza: [120, 108, 112], claro: [200, 192, 194], linha: [236, 230, 229], borda: [222, 214, 213], escuro: [36, 29, 31], rosaClaro: [255, 214, 217], cinzaClaro: [190, 180, 183] };
   const fonte = (k, tam, cor) => { doc.setFont(...F[k]); doc.setFontSize(tam); doc.setTextColor(...cor); };
@@ -1075,23 +1176,20 @@ function paginaPdf(doc, tipo, F) {
   const vagas = vagasDe(tipo);
   const [ano, nm] = mes.split("-").map(Number);
 
-  // Cabeçalho da folha
-  const lh = 21;
-  if (logoPng) doc.addImage(logoPng, "PNG", M, M - 2, lh * logoProp, lh);
-  const tx = M + lh * logoProp + 5;
-  fonte("forte", 20, COR.verm); doc.text("IGREJA BATISTA NACIONAL PENIEL", tx, M + 6.5);
-  fonte("semi", 9.5, COR.cinza); doc.text("MINISTÉRIO DE LOUVOR  •  BERILO - MG", tx, M + 12);
-  fonte("normal", 9, COR.cinza); doc.text("Lugar de encontro, face a face com Deus!", tx, M + 17);
-  // Identificação da escala: cor própria (vozes em vermelho, instrumentos em azul), faixa no topo e selo grande
+  // Cabeçalho: faixa com a foto do grupo, textos em branco por cima (texto de verdade no PDF)
   const corTipo = tipo === "vozes" ? COR.verm : [20, 78, 150];
   const nomeTipo = tipo === "vozes" ? "ESCALA DE VOZES" : "ESCALA DE INSTRUMENTOS";
-  doc.setFillColor(...corTipo); doc.rect(0, 0, W, 3.2, "F");
-  fonte("forte", 17, [255, 255, 255]);
-  const selW = doc.getTextWidth(nomeTipo) + 14, selH = 11.5, selX = W - M - selW, selY = M - 4.5;
-  doc.setFillColor(...corTipo); doc.roundedRect(selX, selY, selW, selH, 2.2, 2.2, "F");
-  doc.text(nomeTipo, selX + selW / 2, selY + 8.2, { align: "center" });
-  fonte("forte", 15, COR.tinta); doc.text(`${MESES[nm - 1].toUpperCase()} ${ano}`, W - M, M + 15.5, { align: "right" });
-  doc.setDrawColor(...corTipo); doc.setLineWidth(0.8); doc.line(M, M + 21, W - M, M + 21);
+  if (faixaTopo) doc.addImage(doc instanceof CanvasDoc ? faixaTopo : faixaTopo.toDataURL("image/jpeg", 0.9), "JPEG", 0, 0, W, FAIXA_H);
+  const lw = logoImg ? 23 * (logoImg.width / logoImg.height) : 22;
+  const tx = 10 + lw + 6;
+  fonte("forte", 22, [255, 255, 255]); doc.text("IGREJA BATISTA NACIONAL PENIEL", tx, 13);
+  fonte("semi", 10, [255, 225, 228]); doc.text("MINISTÉRIO DE LOUVOR  •  BERILO - MG", tx, 19.5);
+  fonte("normal", 9.5, [255, 255, 255]); doc.text("Lugar de encontro, face a face com Deus!", tx, 25);
+  fonte("forte", 17, corTipo);
+  const selW = doc.getTextWidth(nomeTipo) + 14;
+  doc.setFillColor(255, 255, 255); doc.roundedRect(W - M - selW, 6, selW, 11.5, 2.2, 2.2, "F");
+  doc.text(nomeTipo, W - M - selW / 2, 14.2, { align: "center" });
+  fonte("forte", 16, [255, 255, 255]); doc.text(`${MESES[nm - 1].toUpperCase()} ${ano}`, W - M, 25.5, { align: "right" });
 
   // Grade de cartões
   const n = Math.max(1, cultos.length);

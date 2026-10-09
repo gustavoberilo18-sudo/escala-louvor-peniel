@@ -196,6 +196,8 @@ dialog::backdrop{background:rgba(20,8,10,.55);backdrop-filter:blur(2px)}
 .pessoa-zap b{display:block}
 .pessoa-zap span{font-size:12px;color:var(--muted)}
 .pessoa-zap.enviado b::after{content:" ✓ enviado";color:var(--ok);font-size:12px}
+#fotoFoco{accent-color:var(--brand);width:100%}
+.foto-previa{width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:var(--surface-2)}
 .datas{display:flex;flex-wrap:wrap;gap:6px}
 .datas .chip:has(input:checked){background:var(--warn);border-color:var(--warn);color:#fff}
 .log{display:grid;gap:8px}
@@ -295,6 +297,7 @@ dialog::backdrop{background:rgba(20,8,10,.55);backdrop-filter:blur(2px)}
   <div class="dlg-topo"><div><h3>Mais opções</h3><p id="maisMes"></p></div><button class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
   <div class="dlg-corpo">
     <button class="btn" id="btnVagas2"><svg><use href="#i-edit"/></svg>Escolher vagas (backings e instrumentos)</button>
+    <button class="btn" id="btnFoto2"><svg><use href="#i-edit"/></svg>Foto do grupo (topo do PDF e da imagem)</button>
     <button class="btn" id="btnLideranca2"><svg><use href="#i-edit"/></svg>Editar liderança (nomes e WhatsApp)</button>
     <button class="btn" id="btnExtra"><svg><use href="#i-plus"/></svg>Adicionar escala extra</button>
     <div class="campo"><span>Limpar a escala deste mês</span>
@@ -320,6 +323,21 @@ dialog::backdrop{background:rgba(20,8,10,.55);backdrop-filter:blur(2px)}
     <p class="aviso" style="margin:0"><svg><use href="#i-info"/></svg><span>Desmarque o que não vai ter (por exemplo, o teclado). Vale para este mês e para os próximos, até alguém mudar de novo. Quem já estava escalado numa vaga desmarcada não é apagado: o nome volta se a vaga for marcada de novo.</span></p>
   </div>
   <div class="dlg-pe"><button class="btn" data-fechar>Cancelar</button><button class="btn prim" id="btnVagasOk">Salvar</button></div>
+</div></dialog>
+
+<dialog id="dlgFoto"><div class="dlg">
+  <div class="dlg-topo"><div><h3>Foto do grupo</h3><p>Aparece no topo do PDF e da imagem da escala.</p></div><button class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-x"/></svg></button></div>
+  <div class="dlg-corpo">
+    <canvas id="fotoPrevia" class="foto-previa" aria-label="Prévia do topo da escala"></canvas>
+    <label class="campo"><span>Posição da foto (suba ou desça até os rostos aparecerem bem)</span><input type="range" id="fotoFoco" min="0" max="100" step="1"></label>
+    <div class="acoes">
+      <button class="btn" id="fotoEscolher"><svg><use href="#i-plus"/></svg>Escolher outra foto</button>
+      <button class="btn pequeno" id="fotoPadrao" hidden>Voltar à foto padrão</button>
+    </div>
+    <input type="file" id="fotoArquivo" accept="image/*" hidden>
+    <p style="margin:0;font-size:13px;color:var(--muted)">Dica: use uma foto deitada (horizontal), com o grupo todo. A foto vale para todos os meses.</p>
+  </div>
+  <div class="dlg-pe"><button class="btn" data-fechar>Cancelar</button><button class="btn prim" id="fotoSalvar">Salvar</button></div>
 </div></dialog>
 
 <dialog id="dlgExtra"><form class="dlg" id="formExtra">
@@ -373,7 +391,8 @@ dialog::backdrop{background:rgba(20,8,10,.55);backdrop-filter:blur(2px)}
     <label class="opcao"><input type="radio" name="pdfTipo" value="vozes" checked><div><b>Escala de vozes</b><span>Ministro e backings do mês inteiro</span></div></label>
     <label class="opcao"><input type="radio" name="pdfTipo" value="instrumentos"><div><b>Escala de instrumentos</b><span>Teclado, violão, guitarra, baixo e bateria</span></div></label>
     <label class="opcao"><input type="radio" name="pdfTipo" value="tudo"><div><b>As duas</b><span>PDF com duas folhas, ou duas imagens: uma de vozes e uma de instrumentos</span></div></label>
-  </div></div>
+  </div>
+  </div>
   <div class="dlg-pe">
     <button class="btn zap" id="btnImgShare" hidden><svg><use href="#i-zap"/></svg>Compartilhar imagem</button>
     <button class="btn" id="btnImg"><svg><use href="#i-file"/></svg>Baixar imagem (JPG)</button>
