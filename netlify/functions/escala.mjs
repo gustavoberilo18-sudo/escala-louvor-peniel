@@ -181,6 +181,11 @@ function aplicarOp(e, op) {
       (e.vagas ||= {})[mes] = { backings: b, instrumentos: CARGOS.slice(5).filter((x) => instr.includes(x)) };
       break;
     }
+    case "foto.foco": {
+      const foco = Math.max(0, Math.min(1, Number(op.foco) || 0));
+      e.foto = { v: e.foto?.v || 0, foco };
+      break;
+    }
     case "historico.limpar": {
       e.historico = [];
       break;
